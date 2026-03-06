@@ -65,7 +65,7 @@ class WhatsAppService {
     async sendActivityReminder(activity, users) {
         const message = `🔔 Reminder Kegiatan\n\n` +
             `📌 ${activity.name}\n` +
-            `📅 Tanngal Mulai: ${new Date(activity.startDate).toLocaleDateString('en-GB')}\n` +
+            `📅 Tanggal Mulai: ${new Date(activity.startDate).toLocaleDateString('en-GB')}\n` +
             `📅 Tanggal Selesai: ${new Date(activity.endDate).toLocaleDateString('en-GB')}\n` +
             `⚡ Prioritas: ${activity.priority.toUpperCase()}\n` +
             (activity.description ? `📝 ${activity.description.substring(0, 100)}...` : '');
