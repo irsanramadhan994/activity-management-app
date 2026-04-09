@@ -4,7 +4,8 @@
   "description": "Backend API for Activity Management Application",
   "main": "server.js",
   "scripts": {
-    "start": "NODE_OPTIONS=--openssl-legacy-provider node server.js",
+    "start": "node server.js",
+    "build": "echo 'No build step required'",
     "dev": "nodemon server.js"
   },
   "dependencies": {
