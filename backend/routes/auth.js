@@ -143,4 +143,22 @@ router.get('/me', auth, async (req, res, next) => {
     }
 });
 
+// @route   GET /api/auth/users
+// @desc    Get all registered users (for assignee dropdown)
+// @access  Private
+router.get('/users', auth, async (req, res, next) => {
+    try {
+        const users = await User.find()
+            .select('_id username')
+            .sort({ username: 1 });
+
+        res.json({
+            success: true,
+            data: users
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;

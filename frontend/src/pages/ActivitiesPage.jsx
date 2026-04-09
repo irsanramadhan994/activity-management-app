@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
@@ -6,9 +6,10 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
 import { useActivities } from '../context/ActivityContext';
+import { authAPI } from '../services/api';
 import {
     FiPlus, FiSearch, FiFilter, FiCalendar, FiUsers,
-    FiX, FiTrash2, FiDownload, FiFileText
+    FiX, FiTrash2, FiDownload, FiFileText, FiChevronDown, FiCheck
 } from 'react-icons/fi';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
@@ -27,8 +28,31 @@ const ActivitiesPage = () => {
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('');
+    const [usersList, setUsersList] = useState([]);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
     useEffect(() => { fetchActivities(); }, [fetchActivities]);
+
+    // Fetch users when modal opens
+    useEffect(() => {
+        if (showModal) {
+            authAPI.getUsers()
+                .then(res => setUsersList(res.data.data))
+                .catch(() => setUsersList([]));
+        }
+    }, [showModal]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleSearch = () => {
         fetchActivities({ search: searchTerm, priority: priorityFilter || undefined });
@@ -169,7 +193,7 @@ const ActivitiesPage = () => {
                                 validationSchema={activitySchema}
                                 onSubmit={handleCreateActivity}
                             >
-                                {({ isSubmitting, setFieldValue }) => (
+                                {({ isSubmitting, setFieldValue, values }) => (
                                     <Form>
                                         <div className="form-group">
                                             <label className="form-label">Activity Name *</label>
@@ -207,9 +231,71 @@ const ActivitiesPage = () => {
                                             <Field as="textarea" name="description" className="form-textarea" rows={3} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Assign Users (comma separated usernames)</label>
-                                            <input type="text" className="form-input" placeholder="user1, user2"
-                                                onChange={e => setFieldValue('assignees', e.target.value.split(',').map(u => u.trim()).filter(Boolean))} />
+                                            <label className="form-label">Assign Users</label>
+                                            <div ref={dropdownRef} style={{ position: 'relative' }}>
+                                                <button
+                                                    type="button"
+                                                    className="form-input"
+                                                    onClick={() => setDropdownOpen(prev => !prev)}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        cursor: 'pointer', textAlign: 'left', minHeight: '42px'
+                                                    }}
+                                                >
+                                                    <span style={{ color: values.assignees?.length ? 'inherit' : '#9ca3af' }}>
+                                                        {values.assignees?.length
+                                                            ? usersList.filter(u => values.assignees.includes(u._id)).map(u => u.username).join(', ')
+                                                            : 'Select users...'}
+                                                    </span>
+                                                    <FiChevronDown size={16} style={{ transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
+                                                </button>
+                                                {dropdownOpen && (
+                                                    <div style={{
+                                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                                                        background: 'var(--bg-primary, #1e1e2e)', border: '1px solid var(--border-color, #333)',
+                                                        borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                                                    }}>
+                                                        {usersList.length === 0 ? (
+                                                            <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: '0.875rem' }}>No users found</div>
+                                                        ) : usersList.map(user => {
+                                                            const isSelected = values.assignees?.includes(user._id);
+                                                            return (
+                                                                <div
+                                                                    key={user._id}
+                                                                    onClick={() => {
+                                                                        const current = values.assignees || [];
+                                                                        setFieldValue('assignees',
+                                                                            isSelected
+                                                                                ? current.filter(id => id !== user._id)
+                                                                                : [...current, user._id]
+                                                                        );
+                                                                    }}
+                                                                    style={{
+                                                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                                                        padding: '10px 16px', cursor: 'pointer',
+                                                                        background: isSelected ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                                                        transition: 'background 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={e => e.currentTarget.style.background = isSelected ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.background = isSelected ? 'rgba(99,102,241,0.15)' : 'transparent'}
+                                                                >
+                                                                    <span style={{
+                                                                        width: '18px', height: '18px', borderRadius: '4px',
+                                                                        border: isSelected ? '2px solid #6366f1' : '2px solid #555',
+                                                                        background: isSelected ? '#6366f1' : 'transparent',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        flexShrink: 0, transition: 'all 0.15s'
+                                                                    }}>
+                                                                        {isSelected && <FiCheck size={12} color="#fff" />}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '0.875rem' }}>{user.username}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="modal-footer" style={{ padding: 0, border: 'none' }}>
                                             <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
