@@ -65,7 +65,11 @@ const AdminPage = () => {
     const handleSetReminder = async () => {
         if (!selectedActivity || !reminderTime) return;
         try {
-            await adminAPI.setReminder(selectedActivity._id, reminderTime);
+            // Convert datetime-local value to ISO string with timezone info
+            // datetime-local gives "2026-04-10T09:00" (no timezone),
+            // new Date() interprets it in local timezone and toISOString() converts to UTC
+            const localDate = new Date(reminderTime);
+            await adminAPI.setReminder(selectedActivity._id, localDate.toISOString());
             setShowReminderModal(false);
             fetchData();
         } catch (error) {
